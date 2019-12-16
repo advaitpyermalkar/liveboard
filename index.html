@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>ticktacktoe Messenger</title>
+ 
+	 <script src="lib/bugout.min.js"></script>
+    <style>
+		#container{
+			width:100%
+			height:100%
+			margin:auto
+		
+		}
+		#chatbox{
+			float:left;
+			width:50%;
+			height:500px;
+			background-color:#aaa;
+			
+		}
+		#gamebox{
+			width:300px;
+			height:500px;
+			float:left;
+			background-color:#bbb;
+			margin:auto;
+		}
+		#gamebox h2{
+			text-align:center;
+			font-size:35px;
+			
+		}
+		.q{
+			width:80px;
+			height:80px;
+			float:left;
+			cursor:pointer;
+			margin:0;
+			padding:0;
+			padding-bottom: 20px;
+			text-align:center;
+			font-family: sans-serif;
+			font-size:100px;
+			border-left: 5px solid black;
+			border-right: 3px solid black;
+			border-top: 3px solid black;
+			border-bottom: 5px solid black;
+		
+		}
+		.q:hover{
+			background-color:white;
+		}
+		.winner{
+			color: blue;
+		}
+		
+		.start{
+			padding-bottom:10px; 
+			padding-left:10px;
+			padding-right:10px;
+			padding-top:10px;
+			cursor:pointer;
+			margin:auto;
+		}
+		.start:hover{
+			background-color:white;
+
+		}
+	
+	
+        input.message-input {
+            width: 40%;
+        }
+    </style>
+</head>
+<body>
+	<div id="container">
+		<div id="chatbox">
+			<form class="message-form" >
+				<input class="message-input" type="text" placeholder="Enter Message Here..."></input>
+				<button class="message-send-button"> Send </button>
+				<div class="message-board"></div>
+			</form>
+		</div>
+		<div id="gamebox">
+		
+		
+			<h2> Tic Tac Toe</h2>
+			<div class="q"  id="q0"></div>
+			<div class="q"  id="q1"></div>
+			<div class="q"  id="q2"></div>
+			<div class="q"  id="q3"></div>
+			<div class="q"  id="q4"></div>
+			<div class="q"  id="q5"></div>
+			<div class="q"  id="q6"></div>
+			<div class="q"  id="q7"></div>
+			<div class="q"  id="q8"></div>
+			
+			<button class="start">Start</button>
+			<h3>Wait till You are connected </h3>
+			<h3 id="status"> </h3>
+			<h3 id= "winStatus"> </h3>
+		</div>
+	</div>
+
+
+<script>
+
+   
+
+///////////////////Game Code/////////////////////////////////////
+
+const winningCombos = [
+    [0,1,2],
+    [3,4,5],
+    [6,7,8],
+    [0,4,8],
+    [2,4,6],
+    [0,3,6],
+    [1,4,7],
+    [2,5,8]
+];
+
+const grid = () => Array.from(document.getElementsByClassName('q'));	  // Array of Q elements
+
+const qNumId = (qEl) => Number.parseInt(qEl.id.replace('q', ''));			// parsing the elements to numbers
+
+const emptyQs = () => grid().filter(_qEl => _qEl.innerText === '');			// Stores the empty-cells
+
+const allSame = (arr) => arr.every(_qEl => _qEl.innerText === arr[0].innerText && _qEl.innerText !== ''); 		//checks if all three matches 	</the first element>
+
+const takeTurn = (index, letter) => grid()[index].innerText = letter;		// inserts the letter <X/O> in the grid
+
+
+const endGame = (winningSequence) => { 		// Ends the game
+    winningSequence.forEach(_qEl => _qEl.classList.add('winner'));
+    disableListeners();
+};
+
+const checkForVictory = () => { 	// checks for victory
+    let victory = false;
+    winningCombos.forEach(_c => {
+        const _grid = grid();
+        const sequence = [_grid[_c[0]], _grid[_c[1]], _grid[_c[2]]];
+        if(allSame(sequence)) {
+            victory = true;
+            endGame(sequence);
+        }
+    });
+    return victory;
+};
+
+const clickFn = ($event) => { 					// called when you click on the grid 
+	var current_index = qNumId($event.target);
+    takeTurn( current_index, 'x');
+	app.handleGameSend(current_index); // sends the move to opponent
+    if(checkForVictory()){
+	winStatus.innerHTML = "YOU WON"; 
+	}
+    disableListeners();
+};
+
+const enableListeners = () => grid().forEach(_qEl => _qEl.addEventListener('click', clickFn));
+const disableListeners = () => grid().forEach(_qEl => _qEl.removeEventListener('click', clickFn));
+
+
+
+
+
+////////////////////////Application Code/////////////////////////////////////
+
+
+
+   var app = app || {};
+
+    app.connection = new Bugout("eternus-chat-room");
+    app.username   = "Guest";
+    app.SEPARATOR  = ';'
+	
+	var player2;		// stores address of second player
+	var winStatus = document.getElementById("winStatus"); // status message element
+	
+	
+    app.handleMessageReceived = function(address, message){
+        console.log("Message :"+message);
+       
+        var packet = message.split(app.SEPARATOR,2);	
+		
+		
+		if(packet[1]=='G'){							// logic to handle message if its a game choice
+		
+		enableListeners();
+		console.log("index :"+packet[0]);
+		takeTurn(Number.parseInt(packet[0]),'o');
+		if(checkForVictory()){
+		winStatus.innerHTML = "YOU LOST"; 
+		
+		}
+			
+		
+		}
+		else{
+		var post = document.createElement('div');
+        post.innerText = `${packet[0]}:${packet[1]}`;
+        var messageBoard = document.querySelector(".message-board");
+        messageBoard.prepend(post); 
+		}
+    }
+
+    app.handleMessageSend = function(event){
+        event.preventDefault();
+
+        var messageInput = document.querySelector(".message-input");
+        var message      = messageInput.value;
+
+        var packet       = `${app.username}${app.SEPARATOR}${message}`
+
+        if( message ) {
+            app.connection.send(packet);
+        }
+
+        messageInput.value = '';
+        return false;
+    };
+	
+	app.handleGameSend = function(index){						// Sends the game choice in Format index:G  ex: 1:'G' 1st index of grid is the choice
+		event.preventDefault();
+		var packet = `${index}${app.SEPARATOR}${'G'}`
+		
+		if(index)
+		app.connection.send(player2,packet);		
+		
+		return false;
+	
+	};
+	
+
+    app.initializeMessageSend = function(){
+        var messageSendButton = document.querySelector(".message-send-button");
+        messageSendButton.addEventListener('click', app.handleMessageSend);
+    };
+
+    app.initializeMessageReceive = function(){
+        app.connection.on("message",app.handleMessageReceived);
+    };
+	
+	app.initializeGame =function(){								// adds listener on start button
+		disableListeners();
+		var startButton =  document.querySelector(".start");
+		startButton.addEventListener('click', enableListeners);
+		
+	};
+	
+
+    app.acceptUsername = function(){
+        app.username = prompt("Please enter user name") || app.username;
+    };
+
+	
+	
+	/// Custom Logic for validating an instance
+	
+	app.validation = function(){
+		app.connection.once("seen", function(address) { 
+			console.log(address + " [ seen ]"); 
+			player2 = address;
+			});
+	app.connection.on("connections", function(count) { 
+	
+	// when connection count changes we will call change status and if the status is inactive it will close the window
+			
+			var statusMessage = document.getElementById("status"); // status message element
+		
+			console.log(count + " [ count ]"); 
+			if (app.connection.lastwirecount == 0){
+			console.log("Waiting ");	
+			statusMessage.innerHTML = "Status : Waiting"; 
+			}
+			else if (app.connection.lastwirecount==1){
+			console.log("Connected ");		
+			statusMessage.innerHTML = "Status : Connected"; 
+			}
+			else{
+			console.log("inActive");
+			alert("ONLY 2 PLAYERS are allowed!!");
+			window.close();
+			}
+		});
+	
+	
+	};
+	
+	
+    app.initializeApp = function(){
+        app.acceptUsername();
+        app.initializeMessageSend();
+        app.initializeMessageReceive();		
+		app.initializeGame();						//initializes the game
+		
+    };
+	
+	
+	// Execution Starts
+	app.validation(); 								// validates the instance
+    window.addEventListener("load", function(){
+        app.initializeApp();						// initializes the app
+    });	
+	
+	
+	
+
+</script>    
+</body>
+</html>
